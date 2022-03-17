@@ -2,11 +2,13 @@ from typing import Tuple, Callable, List, Dict
 
 import torch
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader, random_split
 
-from models import LinearModel
-from losses import get_criterion
-from datasets import SyntheticDataset
+from lib.models import LinearModel
+from lib.losses import get_criterion
+from lib.utils.bias import compute_bias
+from lib.datasets import SyntheticDataset
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -96,11 +98,11 @@ def experiment(
         params=model.parameters(), lr=learning_rate, weight_decay=l2_regularization
     )
     criterion = get_criterion(loss_criterion)
-    # Train and evaluate
+    mse_criterion = get_criterion("squared_loss")
+    # Train
     train_history = []
     val_history = []
-
-    val_loss_best = 1e10
+    best_loss = 1e10
     for epoch_idx in range(num_epochs):
         print(f"Epoch {epoch_idx}")
         train_loss = train(
@@ -110,22 +112,48 @@ def experiment(
         train_history.append(train_loss)
         val_history.append(val_loss)
 
-        if val_loss <= val_loss_best:
+        if val_loss <= best_loss:
             torch.save(model.state_dict(), "./best.pth")
-            val_loss_best = val_loss
-            train_loss_best = train_loss
+            best_loss = val_loss
+    # Compute bias of the model
     model.load_state_dict(torch.load("./best.pth"))
-    target_loss = eval(model=model, criterion=criterion, dataloader=target_dataloader)
+    if loss_criterion == "hsic":
+        bias = compute_bias(model, train_dataloader)
+        model.update_bias(bias)
+    # Evaluate MSE
+    train_mse = eval(model=model, criterion=mse_criterion, dataloader=train_dataloader)
+    val_mse = eval(model=model, criterion=mse_criterion, dataloader=val_dataloader)
+    target_mse = eval(
+        model=model, criterion=mse_criterion, dataloader=target_dataloader
+    )
 
     results = {
         "train_loss": train_history,
         "val_loss": val_history,
-        "train_loss_best": train_loss_best,
-        "val_loss_best": val_loss_best,
-        "target_loss_best": target_loss,
+        "train_mse": train_mse,
+        "val_mse": val_mse,
+        "target_mse": target_mse,
     }
 
     return results
+
+
+def plot_results(dataset_sizes: List[int], results: List[Dict]):
+    plt.ion()
+    f, ax = plt.subplots()
+    ax.set_xscale("log")
+
+    train_loss = [exp_res["train_mse"] for exp_res in results]
+    val_loss = [exp_res["val_mse"] for exp_res in results]
+    target_loss = [exp_res["target_mse"] for exp_res in results]
+
+    ax.plot(dataset_sizes, train_loss, label="train")
+    ax.plot(dataset_sizes, val_loss, label="val")
+    ax.plot(dataset_sizes, target_loss, label="target")
+    ax.legend()
+
+    ax.set_ylabel("Mean Squared Error")
+    ax.set_xlabel("Train Dataset Size")
 
 
 def main(
@@ -138,7 +166,7 @@ def main(
     l2_regularization: float = 1e-4,
     log_samples_start: int = 5,
     log_samples_end: int = 13,
-) -> List[Dict]:
+):
     dataset_sizes = [2 ** i for i in range(log_samples_start, log_samples_end + 1)]
 
     results = []
@@ -154,7 +182,8 @@ def main(
             noise_distribution=noise_distribution,
         )
         results.append(exp_results)
-    return results
+
+    plot_results(dataset_sizes, results)
 
 
 if __name__ == "__main__":
