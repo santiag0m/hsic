@@ -247,7 +247,7 @@ def plot_results(dataset_sizes: List[int], results: List[Dict]):
 
 
 def main(
-    num_trials: int = 2,
+    num_trials: int = 20,
     loss_criterion: str = "hsic",
     noise_distribution: str = "gaussian",
     num_features: int = 100,
