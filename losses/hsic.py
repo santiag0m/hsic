@@ -19,6 +19,7 @@ def HSIC(x, y, s_x=1, s_y=1):
     K = GaussianKernelMatrix(x, s_x)
     L = GaussianKernelMatrix(y, s_y)
     H = torch.eye(m) - 1.0 / m * torch.ones((m, m))
-    H = H.double().cuda()
+    # H = H.double().cuda()
+    H = H.to(x.device)
     HSIC = torch.trace(torch.mm(L, torch.mm(H, torch.mm(K, H)))) / ((m - 1) ** 2)
     return HSIC
