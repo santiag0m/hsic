@@ -18,3 +18,5 @@ class LinearModel(nn.Module):
     def update_bias(self, bias_value: torch.Tensor):
         if bias_value.shape == self.bias.shape:
             self.bias.copy_(bias_value)
+        else:
+            raise ValueError("Shape mismatch")
