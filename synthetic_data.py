@@ -1,82 +1,18 @@
-from typing import Tuple, Callable, List, Dict
+from typing import List, Dict
 
 import torch
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import DataLoader
 
 from lib.models import LinearModel
 from lib.losses import get_criterion
 from lib.utils.bias import compute_bias
-from lib.datasets import SyntheticDataset
+from lib.utils.trainer import train, eval
+from lib.datasets import SyntheticDataset, train_val_split
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-def train_val_split(dataset: Dataset, val_percentage: float) -> Tuple[Dataset]:
-    len_val = int(len(dataset) * val_percentage)
-    len_train = len(dataset) - len_val
-    train_dataset, val_dataset = random_split(dataset, [len_train, len_val])
-    return train_dataset, val_dataset
-
-
-def train(
-    *,
-    model: LinearModel,
-    criterion: Callable,
-    dataloader: DataLoader,
-    optim: torch.optim.Optimizer,
-    use_pbar: bool = False,
-) -> float:
-    model.train()
-    cum_loss = 0
-
-    if use_pbar:
-        pbar = tqdm(enumerate(dataloader), total=len(dataloader))
-    else:
-        pbar = enumerate(dataloader)
-    for idx, (inputs, targets) in pbar:
-        optim.zero_grad()
-        inputs = inputs.to(DEVICE)
-        targets = targets.to(DEVICE)
-        preds = model(inputs)
-        loss = criterion(inputs, preds, targets)
-        loss.backward()
-        optim.step()
-
-        cum_loss += loss.item()
-        avg_loss = cum_loss / (idx + 1)
-        if use_pbar:
-            pbar.set_description(f"Loss: {avg_loss}")
-    return avg_loss
-
-
-def eval(
-    *,
-    model: LinearModel,
-    criterion: Callable,
-    dataloader: DataLoader,
-    use_pbar: bool = False,
-) -> float:
-    model.eval()
-    cum_loss = 0
-    if use_pbar:
-        pbar = tqdm(enumerate(dataloader), total=len(dataloader))
-    else:
-        pbar = enumerate(dataloader)
-    with torch.no_grad():
-        for idx, (inputs, targets) in pbar:
-            inputs = inputs.to(DEVICE)
-            targets = targets.to(DEVICE)
-            preds = model(inputs)
-            loss = criterion(inputs, preds, targets)
-
-            cum_loss += loss.item()
-            avg_loss = cum_loss / (idx + 1)
-            if use_pbar:
-                pbar.set_description(f"Loss: {avg_loss}")
-    return avg_loss
 
 
 def experiment(
