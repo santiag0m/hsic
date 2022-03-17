@@ -1,6 +1,7 @@
 from typing import Tuple, Callable, List, Dict
 
 import torch
+import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -26,10 +27,15 @@ def train(
     criterion: Callable,
     dataloader: DataLoader,
     optim: torch.optim.Optimizer,
+    use_pbar: bool = False,
 ) -> float:
     model.train()
     cum_loss = 0
-    pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+
+    if use_pbar:
+        pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+    else:
+        pbar = enumerate(dataloader)
     for idx, (inputs, targets) in pbar:
         optim.zero_grad()
         inputs = inputs.to(DEVICE)
@@ -41,14 +47,24 @@ def train(
 
         cum_loss += loss.item()
         avg_loss = cum_loss / (idx + 1)
-        pbar.set_description(f"Loss: {avg_loss}")
+        if use_pbar:
+            pbar.set_description(f"Loss: {avg_loss}")
     return avg_loss
 
 
-def eval(*, model: LinearModel, criterion: Callable, dataloader: DataLoader) -> float:
+def eval(
+    *,
+    model: LinearModel,
+    criterion: Callable,
+    dataloader: DataLoader,
+    use_pbar: bool = False,
+) -> float:
     model.eval()
     cum_loss = 0
-    pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+    if use_pbar:
+        pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+    else:
+        pbar = enumerate(dataloader)
     with torch.no_grad():
         for idx, (inputs, targets) in pbar:
             inputs = inputs.to(DEVICE)
@@ -58,7 +74,8 @@ def eval(*, model: LinearModel, criterion: Callable, dataloader: DataLoader) -> 
 
             cum_loss += loss.item()
             avg_loss = cum_loss / (idx + 1)
-            pbar.set_description(f"Loss: {avg_loss}")
+            if use_pbar:
+                pbar.set_description(f"Loss: {avg_loss}")
     return avg_loss
 
 
@@ -73,6 +90,7 @@ def experiment(
     noise_distribution: str,
     source_input_distribution: str = "uniform",
     target_input_distribution: str = "gaussian",
+    verbose: bool = False,
 ):
     # Create Datasets
     source_dataset = SyntheticDataset(
@@ -104,11 +122,21 @@ def experiment(
     val_history = []
     best_loss = 1e10
     for epoch_idx in range(num_epochs):
-        print(f"Epoch {epoch_idx}")
+        if verbose:
+            print(f"Epoch {epoch_idx}")
         train_loss = train(
-            model=model, criterion=criterion, dataloader=train_dataloader, optim=optim
+            model=model,
+            criterion=criterion,
+            dataloader=train_dataloader,
+            optim=optim,
+            use_pbar=verbose,
         )
-        val_loss = eval(model=model, criterion=criterion, dataloader=val_dataloader)
+        val_loss = eval(
+            model=model,
+            criterion=criterion,
+            dataloader=val_dataloader,
+            use_pbar=verbose,
+        )
         train_history.append(train_loss)
         val_history.append(val_loss)
 
@@ -121,18 +149,53 @@ def experiment(
         bias = compute_bias(model, train_dataloader)
         model.update_bias(bias)
     # Evaluate MSE
-    train_mse = eval(model=model, criterion=mse_criterion, dataloader=train_dataloader)
-    val_mse = eval(model=model, criterion=mse_criterion, dataloader=val_dataloader)
+    train_mse = eval(
+        model=model,
+        criterion=mse_criterion,
+        dataloader=train_dataloader,
+        use_pbar=verbose,
+    )
+    val_mse = eval(
+        model=model,
+        criterion=mse_criterion,
+        dataloader=val_dataloader,
+        use_pbar=verbose,
+    )
     target_mse = eval(
-        model=model, criterion=mse_criterion, dataloader=target_dataloader
+        model=model,
+        criterion=mse_criterion,
+        dataloader=target_dataloader,
+        use_pbar=verbose,
     )
 
     results = {
-        "train_loss": train_history,
-        "val_loss": val_history,
+        "train_history": train_history,
+        "val_history": val_history,
         "train_mse": train_mse,
         "val_mse": val_mse,
         "target_mse": target_mse,
+    }
+
+    return results
+
+
+def multiple_trials(experiment_config: Dict, num_trials: int) -> Dict:
+    results = []
+    for i in tqdm(range(num_trials)):
+        trial_results = experiment(**experiment_config)
+        results.append(trial_results)
+
+    train_mse = [trial["train_mse"] for trial in results]
+    val_mse = [trial["val_mse"] for trial in results]
+    target_mse = [trial["target_mse"] for trial in results]
+
+    results = {
+        "train_mse_mean": np.mean(train_mse),
+        "train_mse_std": np.std(train_mse),
+        "val_mse_mean": np.mean(val_mse),
+        "val_mse_std": np.std(val_mse),
+        "target_mse_mean": np.mean(target_mse),
+        "target_mse_std": np.std(target_mse),
     }
 
     return results
@@ -143,27 +206,55 @@ def plot_results(dataset_sizes: List[int], results: List[Dict]):
     f, ax = plt.subplots()
     ax.set_xscale("log")
 
-    train_loss = [exp_res["train_mse"] for exp_res in results]
-    val_loss = [exp_res["val_mse"] for exp_res in results]
-    target_loss = [exp_res["target_mse"] for exp_res in results]
+    train_loss = np.array([exp_res["train_mse_mean"] for exp_res in results])
+    val_loss = np.array([exp_res["val_mse_mean"] for exp_res in results])
+    target_loss = np.array([exp_res["target_mse_mean"] for exp_res in results])
 
-    ax.plot(dataset_sizes, train_loss, label="train")
-    ax.plot(dataset_sizes, val_loss, label="val")
-    ax.plot(dataset_sizes, target_loss, label="target")
+    train_std = np.array([exp_res["train_mse_std"] for exp_res in results])
+    val_std = np.array([exp_res["val_mse_std"] for exp_res in results])
+    target_std = np.array([exp_res["target_mse_std"] for exp_res in results])
+
+    [p] = ax.plot(dataset_sizes, train_loss, label="train")
+    ax.fill_between(
+        dataset_sizes,
+        train_loss - train_std,
+        train_loss + train_std,
+        color=p.get_color(),
+        alpha=0.5,
+    )
+    [p] = ax.plot(dataset_sizes, val_loss, label="val")
+    ax.fill_between(
+        dataset_sizes,
+        val_loss - val_std,
+        val_loss + val_std,
+        color=p.get_color(),
+        alpha=0.5,
+    )
+    [p] = ax.plot(dataset_sizes, target_loss, label="target")
+    ax.fill_between(
+        dataset_sizes,
+        target_loss - target_std,
+        target_loss + target_std,
+        color=p.get_color(),
+        alpha=0.5,
+    )
     ax.legend()
 
     ax.set_ylabel("Mean Squared Error")
     ax.set_xlabel("Train Dataset Size")
 
+    ax.grid(which="both")
+
 
 def main(
+    num_trials: int = 2,
     loss_criterion: str = "hsic",
     noise_distribution: str = "gaussian",
     num_features: int = 100,
     num_epochs: int = 100,
     batch_size: int = 32,
     learning_rate: float = 1e-3,
-    l2_regularization: float = 1e-4,
+    l2_regularization: float = 1e-3,
     log_samples_start: int = 5,
     log_samples_end: int = 13,
 ):
@@ -171,15 +262,18 @@ def main(
 
     results = []
     for num_samples in dataset_sizes:
-        exp_results = experiment(
-            num_samples=num_samples,
-            num_features=num_features,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
-            learning_rate=learning_rate,
-            l2_regularization=l2_regularization,
-            loss_criterion=loss_criterion,
-            noise_distribution=noise_distribution,
+        experiment_config = {
+            "num_samples": num_samples,
+            "num_features": num_features,
+            "num_epochs": num_epochs,
+            "batch_size": batch_size,
+            "learning_rate": learning_rate,
+            "l2_regularization": l2_regularization,
+            "loss_criterion": loss_criterion,
+            "noise_distribution": noise_distribution,
+        }
+        exp_results = multiple_trials(
+            num_trials=num_trials, experiment_config=experiment_config
         )
         results.append(exp_results)
 
