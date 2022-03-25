@@ -29,6 +29,7 @@ class RunningAvg:
 def compute_bias(model: nn.Module, dataloader: DataLoader) -> torch.Tensor:
     target_avg = RunningAvg()
     pred_avg = RunningAvg()
+    is_training = model.training
     model.eval()
     device = next(model.parameters()).device
     with torch.no_grad():
@@ -39,4 +40,6 @@ def compute_bias(model: nn.Module, dataloader: DataLoader) -> torch.Tensor:
             target_avg.update(targets)
             pred_avg.update(preds)
     bias = target_avg.value - pred_avg.value
+    if is_training:
+        model.train()
     return bias
