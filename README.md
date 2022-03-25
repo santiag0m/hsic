@@ -18,8 +18,11 @@ Training Params:
 
 Experiment Params:
 
-- Noise Distribution: Gaussian
 - Loss Function: HSIC
 - Num. Trials: 20
 
-![Dataset Size vs. MSE graph](https://github.com/santiag0m/robust-hsic/blob/main/results/gaussian_hsic_bs32_lr1e3_wd1e3.png)
+![Dataset Size vs. MSE graph with Gaussian Noise](https://github.com/santiag0m/robust-hsic/blob/main/results/gaussian_hsic_bs32_lr1e3_wd1e3.png)
+
+![Dataset Size vs. MSE graph with Shifted Exponential Noise](https://github.com/santiag0m/robust-hsic/blob/main/results/shifted_exponential_hsic_bs32_lr1e3_wd1e3.png)
+
+![Dataset Size vs. MSE graph with Laplacian Noise](https://github.com/santiag0m/robust-hsic/blob/main/results/laplacian_hsic_bs32_lr1e3_wd1e3.png)
