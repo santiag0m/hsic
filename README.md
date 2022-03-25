@@ -14,7 +14,7 @@ Training Params:
 - Batch Size: 32
 - Learning Rate: 1e-3
 - L2 Regularization (Weight Decay): 1e-3
-- Num Epochs (Best of): 100
+- Num Epochs (Best of): 10
 
 Experiment Params:
 
