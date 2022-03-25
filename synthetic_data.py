@@ -2,7 +2,9 @@ from typing import List, Dict
 
 import torch
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
+import seaborn as sns
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
@@ -41,6 +43,7 @@ def experiment(
         num_features=num_features,
         noise_distribution=noise_distribution,
         input_distribution=target_input_distribution,
+        beta=source_dataset.beta,
     )
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -126,60 +129,32 @@ def multiple_trials(experiment_config: Dict, num_trials: int) -> Dict:
     target_mse = [trial["target_mse"] for trial in results]
 
     results = {
-        "train_mse_mean": np.mean(train_mse),
-        "train_mse_std": np.std(train_mse),
-        "val_mse_mean": np.mean(val_mse),
-        "val_mse_std": np.std(val_mse),
-        "target_mse_mean": np.mean(target_mse),
-        "target_mse_std": np.std(target_mse),
+        "train": pd.Series(train_mse).rename(experiment_config["num_samples"]),
+        "val": pd.Series(val_mse).rename(experiment_config["num_samples"]),
+        "target": pd.Series(target_mse).rename(experiment_config["num_samples"]),
     }
 
     return results
 
 
-def plot_results(dataset_sizes: List[int], results: List[Dict]):
+def plot_results(results: List[Dict]):
     plt.ion()
-    f, ax = plt.subplots()
-    ax.set_xscale("log")
 
-    train_loss = np.array([exp_res["train_mse_mean"] for exp_res in results])
-    val_loss = np.array([exp_res["val_mse_mean"] for exp_res in results])
-    target_loss = np.array([exp_res["target_mse_mean"] for exp_res in results])
-
-    train_std = np.array([exp_res["train_mse_std"] for exp_res in results])
-    val_std = np.array([exp_res["val_mse_std"] for exp_res in results])
-    target_std = np.array([exp_res["target_mse_std"] for exp_res in results])
-
-    [p] = ax.plot(dataset_sizes, train_loss, label="train")
-    ax.fill_between(
-        dataset_sizes,
-        train_loss - train_std,
-        train_loss + train_std,
-        color=p.get_color(),
-        alpha=0.5,
-    )
-    [p] = ax.plot(dataset_sizes, val_loss, label="val")
-    ax.fill_between(
-        dataset_sizes,
-        val_loss - val_std,
-        val_loss + val_std,
-        color=p.get_color(),
-        alpha=0.5,
-    )
-    [p] = ax.plot(dataset_sizes, target_loss, label="target")
-    ax.fill_between(
-        dataset_sizes,
-        target_loss - target_std,
-        target_loss + target_std,
-        color=p.get_color(),
-        alpha=0.5,
-    )
-    ax.legend()
-
-    ax.set_ylabel("Mean Squared Error")
-    ax.set_xlabel("Train Dataset Size")
-
-    ax.grid(which="both")
+    keys = results[0].keys()
+    data = {}
+    for key in keys:
+        df = pd.concat([exp_res[key] for exp_res in results], axis=1)
+        df = (
+            df.stack()
+            .rename("L2")
+            .rename_axis(index=["exp", "num_of_samples"])
+            .reset_index()
+        )
+        data[key] = df
+        ax = sns.lineplot(
+            data=df, x="num_of_samples", y="L2", marker="o", ci=95, label=key
+        )
+    ax.set(xscale="log")
 
 
 def main(
@@ -187,7 +162,7 @@ def main(
     loss_criterion: str = "hsic",
     noise_distribution: str = "gaussian",
     num_features: int = 100,
-    num_epochs: int = 100,
+    num_epochs: int = 10,
     batch_size: int = 32,
     learning_rate: float = 1e-3,
     l2_regularization: float = 1e-3,
@@ -213,7 +188,7 @@ def main(
         )
         results.append(exp_results)
 
-    plot_results(dataset_sizes, results)
+    plot_results(results)
 
 
 if __name__ == "__main__":
