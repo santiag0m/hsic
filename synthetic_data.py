@@ -137,7 +137,7 @@ def multiple_trials(experiment_config: Dict, num_trials: int) -> Dict:
     return results
 
 
-def plot_results(results: List[Dict]):
+def plot_results(results: List[Dict], title: str = ""):
     plt.ion()
 
     keys = results[0].keys()
@@ -155,6 +155,7 @@ def plot_results(results: List[Dict]):
             data=df, x="num_of_samples", y="L2", marker="o", ci=95, label=key
         )
     ax.set(xscale="log")
+    ax.set_title(title)
 
 
 def main(
@@ -188,7 +189,7 @@ def main(
         )
         results.append(exp_results)
 
-    plot_results(results)
+    plot_results(results, title=noise_distribution)
 
 
 if __name__ == "__main__":
