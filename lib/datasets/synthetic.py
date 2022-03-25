@@ -1,10 +1,8 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch
+import numpy as np
 from torch.utils.data import TensorDataset
-from torch.distributions.normal import Normal
-from torch.distributions.laplace import Laplace
-from torch.distributions.exponential import Exponential
 
 
 class SyntheticDataset(TensorDataset):
@@ -14,8 +12,10 @@ class SyntheticDataset(TensorDataset):
         num_features: int,
         noise_distribution: str,
         input_distribution: str,
+        beta: Optional[torch.Tensor] = None,
     ):
-        beta = sample_beta(num_features)
+        if beta is None:
+            beta = sample_beta(num_features)
         inputs, targets = generate_dataset(
             num_samples=num_samples,
             beta=beta,
@@ -75,36 +75,13 @@ def sample_uniform_inputs(num_samples: int, num_features: int) -> torch.Tensor:
 
 def add_noise(targets: torch.Tensor, *, noise_distribution: str) -> torch.Tensor:
     if noise_distribution == "gaussian":
-        targets = add_gaussian_noise(targets)
+        noise = np.random.normal(size=targets.shape)
     elif noise_distribution == "laplacian":
-        targets = add_laplacian_noise(targets)
+        noise = np.random.laplace(size=targets.shape)
     elif noise_distribution == "shifted_exponential":
-        targets = add_shifted_exponential_noise(targets)
+        noise = np.random.exponential(size=targets.shape)
     else:
         raise ValueError(f"Noise distribution '{noise_distribution}' is not supported.")
+    noise = torch.from_numpy(noise).float()
+    targets = targets + noise
     return targets
-
-
-def add_gaussian_noise(targets: torch.Tensor, sigma: float = 1) -> torch.Tensor:
-    loc = torch.zeros_like(targets)
-    scale = sigma * torch.ones_like(targets)
-    distribution = Normal(loc, scale)
-    noise = distribution.sample()
-    return targets + noise
-
-
-def add_laplacian_noise(targets: torch.Tensor, b: float = 1) -> torch.Tensor:
-    loc = torch.zeros_like(targets)
-    scale = b * torch.ones_like(targets)
-    distribution = Laplace(loc, scale)
-    noise = distribution.sample()
-    return targets + noise
-
-
-def add_shifted_exponential_noise(
-    targets: torch.Tensor, rate: float = 1
-) -> torch.Tensor:
-    rate = rate * torch.ones_like(targets)
-    distribution = Exponential(rate)
-    noise = 1 - distribution.sample()
-    return targets + noise
