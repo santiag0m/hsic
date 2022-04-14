@@ -3,6 +3,7 @@ from typing import Tuple
 from torch.utils.data import random_split, Dataset
 
 from .synthetic import SyntheticDataset
+from .mnist import MNIST
 
 
 def train_val_split(dataset: Dataset, val_percentage: float) -> Tuple[Dataset]:
