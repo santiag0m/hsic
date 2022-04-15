@@ -5,9 +5,8 @@ from torch.utils.data import DataLoader
 from .running_average import RunningAverage
 
 
-def compute_bias(model: nn.Module, dataloader: DataLoader) -> torch.Tensor:
-    target_avg = RunningAverage()
-    pred_avg = RunningAverage()
+def compute_accuracy(model: nn.Module, dataloader: DataLoader) -> torch.Tensor:
+    accuracy = RunningAverage()
     is_training = model.training
     model.eval()
     device = next(model.parameters()).device
@@ -16,9 +15,9 @@ def compute_bias(model: nn.Module, dataloader: DataLoader) -> torch.Tensor:
             inputs = inputs.to(device)
             targets = targets.to(device)
             preds = model(inputs)
-            target_avg.update(targets)
-            pred_avg.update(preds)
-    bias = target_avg.value - pred_avg.value
+            preds = torch.argmax(preds, dim=-1)
+            correct = preds == targets
+            accuracy.update(correct.cpu())
     if is_training:
         model.train()
-    return bias
+    return accuracy.value.item()
