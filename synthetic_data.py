@@ -29,7 +29,7 @@ def experiment(
     source_input_distribution: str = "uniform",
     target_input_distribution: str = "gaussian",
     verbose: bool = False,
-):
+) -> Dict:
     # Create Datasets
     source_dataset = SyntheticDataset(
         num_samples=num_samples,
