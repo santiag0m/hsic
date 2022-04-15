@@ -26,6 +26,7 @@ def train(
         inputs = inputs.to(device)
         targets = targets.to(device)
         preds = model(inputs)
+        inputs = torch.flatten(inputs, start_dim=1)
         loss = criterion(inputs, preds, targets)
         loss.backward()
         optim.step()
@@ -56,6 +57,7 @@ def eval(
             inputs = inputs.to(device)
             targets = targets.to(device)
             preds = model(inputs)
+            inputs = torch.flatten(inputs, start_dim=1)
             loss = criterion(inputs, preds, targets)
 
             cum_loss += loss.item()
