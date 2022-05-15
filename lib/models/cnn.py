@@ -18,6 +18,8 @@ class CNN(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
+        self.bias = nn.Parameter(data=torch.Tensor([0]), requires_grad=False)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.relu(self.conv_1(x))
         x = self.pool(x)
@@ -27,4 +29,11 @@ class CNN(nn.Module):
         x = self.relu(self.fc_1(x))
         x = self.dropout(x)
         x = self.fc_2(x)
+        x = x + self.bias
         return x
+
+    def update_bias(self, bias_value: torch.Tensor):
+        if bias_value.shape == self.bias.shape:
+            self.bias.copy_(bias_value)
+        else:
+            raise ValueError("Shape mismatch")
