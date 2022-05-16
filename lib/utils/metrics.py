@@ -19,7 +19,7 @@ def compute_accuracy(model: nn.Module, dataloader: DataLoader) -> torch.Tensor:
             preds = torch.argmax(preds, dim=-1)
             correct = preds == targets
             accuracy.update(correct.cpu())
-    return accuracy.value.item()
+    return accuracy.value
 
 
 def compute_mse(
@@ -39,7 +39,7 @@ def compute_mse(
             batch_mse = (targets - preds) ** 2
             batch_mse = batch_mse.sum(axis=1)
             mse.update(batch_mse.cpu())
-    return mse.value.item()
+    return mse.value
 
 
 def compute_bias(
@@ -59,5 +59,5 @@ def compute_bias(
             preds = model(inputs)
             target_avg.update(targets)
             pred_avg.update(preds)
-    bias = target_avg.value.item() - pred_avg.value.item()
+    bias = target_avg.value - pred_avg.value
     return bias
