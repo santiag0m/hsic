@@ -16,7 +16,9 @@ class MLP(nn.Module):
         fc_layers.append(nn.Linear(in_features, layers[-1]))
         self.mlp = nn.Sequential(*fc_layers)
 
-        self.bias = nn.Parameter(data=torch.Tensor([0]), requires_grad=False)
+        self.bias = nn.Parameter(
+            data=torch.Tensor([0] * layers[-1]), requires_grad=False
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.flatten(x, start_dim=1)
