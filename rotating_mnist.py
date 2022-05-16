@@ -55,10 +55,17 @@ def experiment(
     # Setup Optimizer
     optim = torch.optim.Adam(params=model.parameters(), lr=learning_rate)
 
-    if loss_criterion == "hsic_one_hot":
-        criterion = get_criterion(loss_criterion, num_classes=10, s_x=22, s_y=1)
+    if loss_criterion in {"hsic", "squared_loss"}:
+        target_transform = lambda x: torch.nn.functional.one_hot(x, num_classes=10)
     else:
-        criterion = get_criterion(loss_criterion)
+        target_transform = None
+
+    if loss_criterion == "hsic":
+        criterion = get_criterion(
+            loss_criterion, target_transform=target_transform, s_x=22, s_y=1
+        )
+    else:
+        criterion = get_criterion(loss_criterion, target_transform=target_transform)
 
     # Train
     train_history = []
@@ -168,7 +175,7 @@ def main(
     ]
 
     data = []
-    for loss_criterion in ["hsic_one_hot", "cross_entropy"]:
+    for loss_criterion in ["hsic", "cross_entropy"]:
         results = []
         for model_config in models:
             experiment_config = {
@@ -183,8 +190,6 @@ def main(
             )
             results.append(exp_results)
         results = group_results(results)
-        if loss_criterion == "hsic_one_hot":
-            loss_criterion = "HSIC"
         results["loss_criterion"] = loss_criterion
         data.append(results)
     data = pd.concat(data)
