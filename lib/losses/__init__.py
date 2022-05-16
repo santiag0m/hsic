@@ -15,6 +15,15 @@ def get_criterion(loss_criterion: str, **kwargs) -> Callable:
     ) -> torch.Tensor:
         return mse_loss(preds, target, **kwargs)
 
+    def squared_loss_one_hot(
+        features: torch.Tensor,
+        preds: torch.Tensor,
+        target: torch.Tensor,
+    ) -> torch.Tensor:
+        target = one_hot(target, num_classes=num_classes)
+        residual = target - preds
+        return mse_loss(preds, residual, **kwargs)
+
     def absolute_loss(
         features: torch.Tensor, preds: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
@@ -42,6 +51,8 @@ def get_criterion(loss_criterion: str, **kwargs) -> Callable:
 
     if loss_criterion == "squared_loss":
         return squared_loss
+    elif loss_criterion == "squared_loss_one_hot":
+        return squared_loss_one_hot
     elif loss_criterion == "absolute_loss":
         return absolute_loss
     elif loss_criterion == "cross_entropy":
