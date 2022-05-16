@@ -16,7 +16,18 @@ class MLP(nn.Module):
         fc_layers.append(nn.Linear(in_features, layers[-1]))
         self.mlp = nn.Sequential(*fc_layers)
 
+        self.bias = nn.Parameter(
+            data=torch.Tensor([0] * layers[-1]), requires_grad=False
+        )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.flatten(x, start_dim=1)
         x = self.mlp(x)
+        x = x + self.bias
         return x
+
+    def update_bias(self, bias_value: torch.Tensor):
+        if bias_value.shape == self.bias.shape:
+            self.bias.copy_(bias_value)
+        else:
+            raise ValueError("Shape mismatch")

@@ -11,7 +11,7 @@ from lib.datasets import MNIST
 from lib.models import CNN, MLP
 from lib.losses import get_criterion
 from lib.utils.trainer import train, eval
-from lib.utils.metrics import compute_accuracy
+from lib.utils.metrics import compute_accuracy, compute_mse, compute_bias
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -56,7 +56,9 @@ def experiment(
     optim = torch.optim.Adam(params=model.parameters(), lr=learning_rate)
 
     if loss_criterion in {"hsic", "squared_loss"}:
-        target_transform = lambda x: torch.nn.functional.one_hot(x, num_classes=10)
+        target_transform = lambda x: torch.nn.functional.one_hot(
+            x, num_classes=10
+        ).float()
     else:
         target_transform = None
 
@@ -94,11 +96,26 @@ def experiment(
             torch.save(model.state_dict(), "./best.pth")
             best_loss = val_loss
 
-    # Compute Accuracy
+    # Load Model
+    one_hot = lambda x: torch.nn.functional.one_hot(x, num_classes=10)
     model.load_state_dict(torch.load("./best.pth"))
+
+    # Correct Bias for HSIC
+    if loss_criterion == "hsic":
+        bias = compute_bias(model, train_dataloader, target_transform=one_hot)
+        model.update_bias(bias)
+
+    # Compute Accuracy
     train_accuracy = compute_accuracy(model, train_dataloader)
     val_accuracy = compute_accuracy(model, val_dataloader)
     target_accuracy = compute_accuracy(model, target_dataloader)
+
+    # Compute MSE
+    train_mse = compute_mse(model, train_dataloader, target_transform=one_hot)
+    val_mse = compute_mse(model, val_dataloader, target_transform=one_hot)
+    target_mse = compute_mse(model, target_dataloader, target_transform=one_hot)
+
+    print(train_mse, val_mse, target_mse)
 
     results = {
         "train_history": train_history,
@@ -106,6 +123,9 @@ def experiment(
         "train_accuracy": train_accuracy,
         "val_accuracy": val_accuracy,
         "target_accuracy": target_accuracy,
+        "train_mse": train_mse,
+        "val_mse": val_mse,
+        "target_mse": target_mse,
     }
 
     return results
@@ -121,10 +141,21 @@ def multiple_trials(experiment_config: Dict, num_trials: int) -> Dict:
     val_accuracy = [trial["val_accuracy"] for trial in results]
     target_accuracy = [trial["target_accuracy"] for trial in results]
 
+    train_mse = [trial["train_mse"] for trial in results]
+    val_mse = [trial["val_mse"] for trial in results]
+    target_mse = [trial["target_mse"] for trial in results]
+
     results = {
-        "train": pd.Series(train_accuracy).rename(experiment_config["model_name"]),
-        # "val": pd.Series(val_accuracy).rename(experiment_config["model_name"]),
-        "target": pd.Series(target_accuracy).rename(experiment_config["model_name"]),
+        "train_accuracy": pd.Series(train_accuracy).rename(
+            experiment_config["model_name"]
+        ),
+        # "val_accuracy": pd.Series(val_accuracy).rename(experiment_config["model_name"]),
+        "target_accuracy": pd.Series(target_accuracy).rename(
+            experiment_config["model_name"]
+        ),
+        "train_mse": pd.Series(train_mse).rename(experiment_config["model_name"]),
+        # "val_mse": pd.Series(val_mse).rename(experiment_config["model_name"]),
+        "target_mse": pd.Series(target_mse).rename(experiment_config["model_name"]),
     }
 
     return results
@@ -138,7 +169,7 @@ def group_results(results: List[Dict]) -> pd.DataFrame:
         df = pd.concat([exp_res[key] for exp_res in results], axis=1)
         df = (
             df.stack()
-            .rename("Accuracy")
+            .rename("Value")
             .rename_axis(index=["exp", "model_name"])
             .reset_index()
         )
@@ -166,16 +197,16 @@ def main(
 ):
     models = [
         {"model_name": "CNN", "cnn": True},
-        {"model_name": "MLP 2x256", "mlp_layers": [256, 256, 10]},
-        {"model_name": "MLP 2x524", "mlp_layers": [524, 524, 10]},
-        {"model_name": "MLP 2x1024", "mlp_layers": [1024, 1024, 10]},
-        {"model_name": "MLP 4x256", "mlp_layers": [256, 256, 256, 256, 10]},
-        {"model_name": "MLP 4x524", "mlp_layers": [524, 524, 524, 524, 10]},
-        {"model_name": "MLP 4x1024", "mlp_layers": [1024, 1024, 1024, 1024, 10]},
+        # {"model_name": "MLP 2x256", "mlp_layers": [256, 256, 10]},
+        # {"model_name": "MLP 2x524", "mlp_layers": [524, 524, 10]},
+        # {"model_name": "MLP 2x1024", "mlp_layers": [1024, 1024, 10]},
+        # {"model_name": "MLP 4x256", "mlp_layers": [256, 256, 256, 256, 10]},
+        # {"model_name": "MLP 4x524", "mlp_layers": [524, 524, 524, 524, 10]},
+        # {"model_name": "MLP 4x1024", "mlp_layers": [1024, 1024, 1024, 1024, 10]},
     ]
 
     data = []
-    for loss_criterion in ["hsic", "cross_entropy"]:
+    for loss_criterion in ["hsic", "squared_loss", "cross_entropy"]:
         results = []
         for model_config in models:
             experiment_config = {
@@ -194,6 +225,8 @@ def main(
         data.append(results)
     data = pd.concat(data)
     plot_results(data)
+
+    data.to_csv("regression_results.csv", index=False)
 
 
 if __name__ == "__main__":

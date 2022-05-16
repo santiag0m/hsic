@@ -1,42 +1,40 @@
-from typing import Callable
+from typing import Optional, Callable
 
 import torch
-from torch.nn.functional import mse_loss, l1_loss, cross_entropy, one_hot
+from torch.nn.functional import mse_loss, l1_loss, cross_entropy
 
 from .hsic import HSIC
 
 
-def get_criterion(loss_criterion: str, **kwargs) -> Callable:
+def get_criterion(
+    loss_criterion: str, target_transform: Optional[Callable] = None, **kwargs
+) -> Callable:
 
-    num_classes = kwargs.pop("num_classes", None)
+    if target_transform is None:
+        target_transform = lambda x: x
 
     def squared_loss(
         features: torch.Tensor, preds: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
+        target = target_transform(target)
         return mse_loss(preds, target, **kwargs)
 
     def absolute_loss(
         features: torch.Tensor, preds: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
+        target = target_transform(target)
         return l1_loss(preds, target, **kwargs)
 
     def _cross_entropy(
         features: torch.Tensor, preds: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
+        target = target_transform(target)
         return cross_entropy(preds, target, **kwargs)
 
     def hsic(
         features: torch.Tensor, preds: torch.Tensor, target: torch.Tensor
     ) -> torch.Tensor:
-        residual = target - preds
-        return HSIC(features, residual, **kwargs)
-
-    def hsic_one_hot(
-        features: torch.Tensor,
-        preds: torch.Tensor,
-        target: torch.Tensor,
-    ) -> torch.Tensor:
-        target = one_hot(target, num_classes=num_classes)
+        target = target_transform(target)
         residual = target - preds
         return HSIC(features, residual, **kwargs)
 
@@ -48,7 +46,5 @@ def get_criterion(loss_criterion: str, **kwargs) -> Callable:
         return _cross_entropy
     elif loss_criterion == "hsic":
         return hsic
-    elif loss_criterion == "hsic_one_hot":
-        return hsic_one_hot
     else:
         raise ValueError(f"Loss criterion '{loss_criterion}' is not supported")
