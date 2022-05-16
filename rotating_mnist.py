@@ -11,7 +11,7 @@ from lib.datasets import MNIST
 from lib.models import CNN, MLP
 from lib.losses import get_criterion
 from lib.utils.trainer import train, eval
-from lib.utils.accuracy import compute_accuracy
+from lib.utils.metrics import compute_accuracy
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

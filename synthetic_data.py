@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from lib.models import LinearModel
 from lib.losses import get_criterion
-from lib.utils.bias import compute_bias
+from lib.utils.metrics import compute_bias
 from lib.utils.trainer import train, eval
 from lib.datasets import SyntheticDataset, train_val_split
 
