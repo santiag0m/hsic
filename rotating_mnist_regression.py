@@ -169,7 +169,7 @@ def group_results(results: List[Dict]) -> pd.DataFrame:
         df = pd.concat([exp_res[key] for exp_res in results], axis=1)
         df = (
             df.stack()
-            .rename("Accuracy")
+            .rename("Value")
             .rename_axis(index=["exp", "model_name"])
             .reset_index()
         )
@@ -226,7 +226,7 @@ def main(
     data = pd.concat(data)
     plot_results(data)
 
-    data.to_csv("regression_results.csv")
+    data.to_csv("regression_results.csv", index=False)
 
 
 if __name__ == "__main__":
