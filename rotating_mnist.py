@@ -166,16 +166,16 @@ def main(
 ):
     models = [
         {"model_name": "CNN", "cnn": True},
-        {"model_name": "MLP 2x256", "mlp_layers": [256, 256, 10]},
-        {"model_name": "MLP 2x524", "mlp_layers": [524, 524, 10]},
-        {"model_name": "MLP 2x1024", "mlp_layers": [1024, 1024, 10]},
-        {"model_name": "MLP 4x256", "mlp_layers": [256, 256, 256, 256, 10]},
-        {"model_name": "MLP 4x524", "mlp_layers": [524, 524, 524, 524, 10]},
-        {"model_name": "MLP 4x1024", "mlp_layers": [1024, 1024, 1024, 1024, 10]},
+        # {"model_name": "MLP 2x256", "mlp_layers": [256, 256, 10]},
+        # {"model_name": "MLP 2x524", "mlp_layers": [524, 524, 10]},
+        # {"model_name": "MLP 2x1024", "mlp_layers": [1024, 1024, 10]},
+        # {"model_name": "MLP 4x256", "mlp_layers": [256, 256, 256, 256, 10]},
+        # {"model_name": "MLP 4x524", "mlp_layers": [524, 524, 524, 524, 10]},
+        # {"model_name": "MLP 4x1024", "mlp_layers": [1024, 1024, 1024, 1024, 10]},
     ]
 
     data = []
-    for loss_criterion in ["hsic", "cross_entropy"]:
+    for loss_criterion in ["cross_entropy"]:  # ["hsic", "cross_entropy"]:
         results = []
         for model_config in models:
             experiment_config = {
