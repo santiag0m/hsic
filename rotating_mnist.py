@@ -194,6 +194,7 @@ def main(
         data.append(results)
     data = pd.concat(data)
     plot_results(data)
+    results.to_csv("results.csv", index=False)
 
 
 if __name__ == "__main__":
