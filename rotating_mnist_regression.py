@@ -32,7 +32,7 @@ def experiment(
             raise ValueError(
                 "Conflicting models. Either set `cnn` to false or `mlp_layers` to `[]`"
             )
-        model = CNN()
+        model = CNN(softmax=True)
     elif mlp_layers:
         model = MLP(in_features=28 * 28, layers=mlp_layers)
     else:
@@ -206,7 +206,7 @@ def main(
     ]
 
     data = []
-    for loss_criterion in ["hsic", "squared_loss", "cross_entropy"]:
+    for loss_criterion in ["hsic"]:  # , "squared_loss", "cross_entropy"]:
         results = []
         for model_config in models:
             experiment_config = {
@@ -224,9 +224,9 @@ def main(
         results["loss_criterion"] = loss_criterion
         data.append(results)
     data = pd.concat(data)
-    plot_results(data)
 
-    data.to_csv("regression_results.csv", index=False)
+    data.to_csv("regression_results_softmax_hsic.csv", index=False)
+    plot_results(data)
 
 
 if __name__ == "__main__":

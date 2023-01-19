@@ -3,8 +3,9 @@ import torch.nn as nn
 
 
 class CNN(nn.Module):
-    def __init__(self):
+    def __init__(self, softmax: bool = False):
         super().__init__()
+        self.softmax = softmax
         self.conv_1 = nn.Conv2d(
             in_channels=1, out_channels=32, kernel_size=3, stride=1, padding=1
         )
@@ -30,6 +31,8 @@ class CNN(nn.Module):
         x = self.dropout(x)
         x = self.fc_2(x)
         x = x + self.bias
+        if self.softmax:
+            x = torch.softmax(x, dim=-1)
         return x
 
     def update_bias(self, bias_value: torch.Tensor):
